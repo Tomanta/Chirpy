@@ -8,7 +8,7 @@ import (
 func handlerHealthz(writer http.ResponseWriter, request *http.Request) {
 	writer.Header().Set("Content-Type","text/plain; charset=utf-8")
 	writer.WriteHeader(http.StatusOK)
-	writer.Write([]byte("200 OK"))
+	writer.Write([]byte(http.StatusText(http.StatusOK)))
 }
 
 func main() {
@@ -16,8 +16,8 @@ func main() {
 	const filepathRoot = "."
 	
 	serveMux := http.NewServeMux()
+	serveMux.Handle("/app/", http.StripPrefix("/app",http.FileServer(http.Dir(filepathRoot))))
 	serveMux.HandleFunc("/healthz", handlerHealthz)
-	serveMux.Handle("/app/", http.StripPrefix("/app/",http.FileServer(http.Dir(filepathRoot))))
 
 	server := &http.Server{
 		Addr: ":" + port,
