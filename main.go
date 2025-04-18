@@ -1,21 +1,29 @@
 package main
 
 import (
-	"fmt"
-	"os"
+	"log"
 	"net/http"
 )
 
+func handlerHealthz(writer http.ResponseWriter, request *http.Request) {
+	writer.Header().Set("Content-Type","text/plain; charset=utf-8")
+	writer.WriteHeader(http.StatusOK)
+	writer.Write([]byte("200 OK"))
+}
+
 func main() {
+	const port = "8080"
+	const filepathRoot = "."
+	
 	serveMux := http.NewServeMux()
-	server := http.Server{
-		Addr: ":8080",
+	serveMux.HandleFunc("/healthz", handlerHealthz)
+	serveMux.Handle("/app/", http.StripPrefix("/app/",http.FileServer(http.Dir(filepathRoot))))
+
+	server := &http.Server{
+		Addr: ":" + port,
 		Handler: serveMux,
 	}
-	err := server.ListenAndServe()
-	if err != nil {
-		fmt.Printf("Unable to start server: %v\n", err)
-		os.Exit(1)
-	}
-
+	
+	log.Printf("Serving files from %s on port: %s\n", filepathRoot, port)
+	log.Fatal(server.ListenAndServe())
 }
