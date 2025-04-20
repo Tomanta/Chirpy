@@ -7,22 +7,8 @@ import (
 	"sync/atomic"
 )
 
-func (cfg *apiConfig) handlerMetrics(writer http.ResponseWriter, request *http.Request) {
-	writer.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	writer.WriteHeader(http.StatusOK)
-	writer.Write([]byte(fmt.Sprintf("Hits: %d", cfg.fileserverHits.Load())))
-}
-
 type apiConfig struct {
 	fileserverHits atomic.Int32
-}
-
-func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		cfg.fileserverHits.Add(1)
-		next.ServeHTTP(w, r)
-	})
-
 }
 
 func main() {
@@ -36,8 +22,9 @@ func main() {
 	serveMux := http.NewServeMux()
 	serveMux.Handle("/app/", cfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot)))))
 	serveMux.HandleFunc("GET /api/healthz", handlerHealthz)
-	serveMux.HandleFunc("GET /api/metrics", cfg.handlerMetrics)
-	serveMux.HandleFunc("POST /api/reset", cfg.handlerReset)
+
+	serveMux.HandleFunc("POST /admin/reset", cfg.handlerReset)
+	serveMux.HandleFunc("GET /admin/metrics", cfg.handlerMetrics)
 
 	server := &http.Server{
 		Addr:    ":" + port,
