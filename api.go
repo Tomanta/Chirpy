@@ -50,10 +50,17 @@ func handlerValidateChirp(writer http.ResponseWriter, request *http.Request) {
 }
 
 func cleanBody(to_clean string) string {
+
+	badWords := map[string]struct{}{
+		"kerfuffle": {},
+		"sharbert":  {},
+		"fornax":    {},
+	}
+
 	words := strings.Split(to_clean, " ")
 	for i, word := range words {
-		lower := strings.ToLower(word)
-		if lower == "kerfuffle" || lower == "sharbert" || lower == "fornax" {
+		loweredWord := strings.ToLower(word)
+		if _, ok := badWords[loweredWord]; ok {
 			words[i] = "****"
 		}
 	}
