@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"sync/atomic"
 )
 
@@ -15,8 +16,8 @@ func handlerValidateChirp(writer http.ResponseWriter, request *http.Request) {
 		Body string `json:"body"`
 	}
 
-	type returnValid struct {
-		Valid bool `json:"valid"`
+	type returnClean struct {
+		CleanedBody string `json:"cleaned_body"`
 	}
 
 	decoder := json.NewDecoder(request.Body)
@@ -42,8 +43,19 @@ func handlerValidateChirp(writer http.ResponseWriter, request *http.Request) {
 	}
 
 	// Chirp is under max length
-	respondWithJSON(writer, http.StatusOK, returnValid{
-		Valid: true,
+	respondWithJSON(writer, http.StatusOK, returnClean{
+		CleanedBody: cleanBody(params.Body),
 	})
 
+}
+
+func cleanBody(to_clean string) string {
+	words := strings.Split(to_clean, " ")
+	for i, word := range words {
+		lower := strings.ToLower(word)
+		if lower == "kerfuffle" || lower == "sharbert" || lower == "fornax" {
+			words[i] = "****"
+		}
+	}
+	return strings.Join(words, " ")
 }
