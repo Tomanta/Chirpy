@@ -1,18 +1,45 @@
 package main
 
 import (
+	"database/sql"
+	"fmt"
+	"github.com/joho/godotenv"
+	_ "github.com/lib/pq"
+	"github.com/tomanta/chirpy/internal/database"
 	"log"
 	"net/http"
+	"os"
 	"sync/atomic"
-	_ "github.com/lib/pq"
 )
 
+type apiConfig struct {
+	fileserverHits atomic.Int32
+	dbQueries      *database.Queries
+	platform       string
+}
+
 func main() {
+	godotenv.Load()
+
 	const port = "8080"
 	const filepathRoot = "."
 
+	dbURL := os.Getenv("DB_URL")
+	db, err := sql.Open("postgres", dbURL)
+	if err != nil {
+		fmt.Errorf("Could not create db: %w", err)
+		os.Exit(1)
+	}
+
+	platform := os.Getenv("PLATFORM")
+	if platform == "" {
+		log.Fatal("PLATFORM must be set in .ENV")
+	}
+
 	cfg := apiConfig{
 		fileserverHits: atomic.Int32{},
+		dbQueries:      database.New(db),
+		platform:       platform,
 	}
 
 	serveMux := http.NewServeMux()
@@ -20,6 +47,7 @@ func main() {
 
 	serveMux.HandleFunc("GET /api/healthz", handlerHealthz)
 	serveMux.HandleFunc("POST /api/validate_chirp", handlerValidateChirp)
+	serveMux.HandleFunc("POST /api/users", cfg.handlerCreateUser)
 
 	serveMux.HandleFunc("GET /admin/metrics", cfg.handlerMetrics)
 	serveMux.HandleFunc("POST /admin/reset", cfg.handlerReset)
