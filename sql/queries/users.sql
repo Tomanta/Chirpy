@@ -5,5 +5,10 @@ VALUES (
 )
 RETURNING *;
 
+-- name: GetUser :one
+SELECT id, email, created_at, updated_at
+FROM Users
+WHERE id = $1;
+
 -- name: ResetUsers :exec
 DELETE FROM users;
