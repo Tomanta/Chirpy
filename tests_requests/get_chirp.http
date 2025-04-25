@@ -1,0 +1,1 @@
+GET http://localhost:8080/api/chirps/45b4f785-a9b5-4867-a15a-2610212636b0 HTTP/1.1

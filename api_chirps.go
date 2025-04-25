@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/google/uuid"
 	"github.com/tomanta/chirpy/internal/database"
 	"net/http"
@@ -23,6 +24,7 @@ func (cfg *apiConfig) handlerGetChirps(writer http.ResponseWriter, request *http
 	dbChirps, err := cfg.dbQueries.GetChirps(context.Background())
 	if err != nil {
 		respondWithError(writer, http.StatusBadRequest, "Could not retrieve chirps", err)
+		return
 	}
 
 	chirps := []Chirp{}
@@ -40,6 +42,30 @@ func (cfg *apiConfig) handlerGetChirps(writer http.ResponseWriter, request *http
 
 }
 
+func (cfg *apiConfig) handlerGetChirpByID(writer http.ResponseWriter, request *http.Request) {
+
+	chirpID, err := uuid.Parse(request.PathValue("chirpID"))
+	if err != nil {
+		respondWithError(writer, http.StatusBadRequest, "Invalid chirp ID", err)
+		return
+	}
+
+	dbResponse, err := cfg.dbQueries.GetChirpByID(context.Background(), chirpID)
+	if err != nil {
+		respondWithError(writer, http.StatusNotFound, "Could not retrieve chirp", err)
+		return
+	}
+
+	respondWithJSON(writer, http.StatusOK, Chirp{
+		ID:        dbResponse.ID,
+		CreatedAt: dbResponse.CreatedAt,
+		UpdatedAt: dbResponse.UpdatedAt,
+		Body:      dbResponse.Body,
+		UserID:    dbResponse.UserID,
+	})
+
+}
+
 func (cfg *apiConfig) handlerCreateChirp(writer http.ResponseWriter, request *http.Request) {
 	type parameters struct {
 		Body   string    `json:"body"`
@@ -53,6 +79,7 @@ func (cfg *apiConfig) handlerCreateChirp(writer http.ResponseWriter, request *ht
 	user, err := cfg.dbQueries.GetUser(context.Background(), params.UserID)
 	if err != nil {
 		respondWithError(writer, http.StatusBadRequest, "Invalid user_id", err)
+		return
 	}
 
 	if params.Body == "" {
@@ -74,6 +101,7 @@ func (cfg *apiConfig) handlerCreateChirp(writer http.ResponseWriter, request *ht
 	newChirpResponse, err := cfg.dbQueries.CreateChirp(context.Background(), newChirp)
 	if err != nil {
 		respondWithError(writer, http.StatusBadRequest, "Could not create chirp", err)
+		return
 	}
 
 	// Chirp is under max length
