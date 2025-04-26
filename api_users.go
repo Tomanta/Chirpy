@@ -4,10 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/google/uuid"
+	"github.com/tomanta/chirpy/internal/auth"
+	"github.com/tomanta/chirpy/internal/database"
 	"net/http"
 	"time"
-	"github.com/tomanta/chirpy/internal/auth"
-	"github.com/tomanta/chirpy/internal/database"	
 )
 
 type User struct {
@@ -18,7 +18,7 @@ type User struct {
 }
 
 type UserParameters struct {
-	Email string `json:"email"`
+	Email    string `json:"email"`
 	Password string `json:"password"`
 }
 
@@ -41,7 +41,7 @@ func (cfg *apiConfig) handlerCreateUser(writer http.ResponseWriter, request *htt
 	}
 
 	user_params := database.CreateUserParams{
-		Email: params.Email,
+		Email:          params.Email,
 		HashedPassword: pw_hash,
 	}
 
@@ -60,7 +60,6 @@ func (cfg *apiConfig) handlerCreateUser(writer http.ResponseWriter, request *htt
 
 	respondWithJSON(writer, http.StatusCreated, payload)
 }
-
 
 func (cfg *apiConfig) handlerUserLogin(writer http.ResponseWriter, request *http.Request) {
 
@@ -86,7 +85,6 @@ func (cfg *apiConfig) handlerUserLogin(writer http.ResponseWriter, request *http
 		return
 	}
 
-
 	payload := User{
 		Id:        user.ID,
 		CreatedAt: user.CreatedAt,
@@ -94,6 +92,6 @@ func (cfg *apiConfig) handlerUserLogin(writer http.ResponseWriter, request *http
 		Email:     user.Email,
 	}
 
-	respondWithJSON(writer, http.StatusOK, payload)	
+	respondWithJSON(writer, http.StatusOK, payload)
 
 }
