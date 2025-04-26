@@ -6,22 +6,26 @@ import (
 	"github.com/google/uuid"
 	"net/http"
 	"time"
+	"github.com/tomanta/chirpy/internal/auth"
+	"github.com/tomanta/chirpy/internal/database"	
 )
 
-func (cfg *apiConfig) handlerCreateUser(writer http.ResponseWriter, request *http.Request) {
-	type parameters struct {
-		Email string `json:"email"`
-	}
+type User struct {
+	Id        uuid.UUID `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Email     string    `json:"email"`
+}
 
-	type User struct {
-		Id        uuid.UUID `json:"id"`
-		CreatedAt time.Time `json:"created_at"`
-		UpdatedAt time.Time `json:"updated_at"`
-		Email     string    `json:"email"`
-	}
+type UserParameters struct {
+	Email string `json:"email"`
+	Password string `json:"password"`
+}
+
+func (cfg *apiConfig) handlerCreateUser(writer http.ResponseWriter, request *http.Request) {
 
 	decoder := json.NewDecoder(request.Body)
-	params := parameters{}
+	params := UserParameters{}
 	err := decoder.Decode(&params)
 
 	// Error: Unable to decode
@@ -30,7 +34,18 @@ func (cfg *apiConfig) handlerCreateUser(writer http.ResponseWriter, request *htt
 		return
 	}
 
-	returnUser, err := cfg.dbQueries.CreateUser(context.Background(), params.Email)
+	pw_hash, err := auth.HashPassword(params.Password)
+	if err != nil {
+		respondWithError(writer, http.StatusInternalServerError, "Could not hash password", err)
+		return
+	}
+
+	user_params := database.CreateUserParams{
+		Email: params.Email,
+		HashedPassword: pw_hash,
+	}
+
+	returnUser, err := cfg.dbQueries.CreateUser(context.Background(), user_params)
 	if err != nil {
 		respondWithError(writer, http.StatusInternalServerError, "Couldn't create user", err)
 		return
@@ -44,4 +59,41 @@ func (cfg *apiConfig) handlerCreateUser(writer http.ResponseWriter, request *htt
 	}
 
 	respondWithJSON(writer, http.StatusCreated, payload)
+}
+
+
+func (cfg *apiConfig) handlerUserLogin(writer http.ResponseWriter, request *http.Request) {
+
+	decoder := json.NewDecoder(request.Body)
+	params := UserParameters{}
+	err := decoder.Decode(&params)
+
+	// Error: Unable to decode
+	if err != nil {
+		respondWithError(writer, http.StatusInternalServerError, "Couldn't decode parameters", err)
+		return
+	}
+
+	user, err := cfg.dbQueries.GetUserByEmail(context.Background(), params.Email)
+	if err != nil {
+		respondWithError(writer, http.StatusUnauthorized, "ncorrect email or password", err)
+		return
+	}
+
+	err = auth.CheckPasswordHash(params.Password, user.HashedPassword)
+	if err != nil {
+		respondWithError(writer, http.StatusUnauthorized, "incorrect email or password", err)
+		return
+	}
+
+
+	payload := User{
+		Id:        user.ID,
+		CreatedAt: user.CreatedAt,
+		UpdatedAt: user.UpdatedAt,
+		Email:     user.Email,
+	}
+
+	respondWithJSON(writer, http.StatusOK, payload)	
+
 }
