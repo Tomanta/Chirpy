@@ -9,6 +9,8 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"crypto/rand"
+	"encoding/hex"
 )
 
 type TokenType string
@@ -83,4 +85,13 @@ func GetBearerToken(headers http.Header) (string, error) {
 		return "", errors.New("malformed authorization header")
 	}
 	return splitAuth[1], nil
+}
+
+func MakeRefreshToken() (string, error) {
+	token := make([]byte, 32)
+	_, err := rand.Read(token)
+	if err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(token), nil
 }
