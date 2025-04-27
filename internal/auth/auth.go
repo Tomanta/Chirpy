@@ -7,6 +7,8 @@ import (
 	"time"
 	"github.com/golang-jwt/jwt/v5"
 	"errors"
+	"net/http"
+	"strings"
 )
 
 type TokenType string
@@ -69,4 +71,12 @@ func ValidateJWT(tokenString, tokenSecret string) (uuid.UUID, error) {
 	}
 	return id, nil
 
+}
+
+func GetBearerToken(headers http.Header) (string, error) {
+	auth_info := headers.Get("Authorization")
+	if auth_info == "" {
+		return "", errors.New("Auth token does not exist")
+	}
+	return strings.TrimSpace(strings.TrimPrefix(auth_info, "Bearer")), nil
 }
