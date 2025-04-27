@@ -16,6 +16,7 @@ type apiConfig struct {
 	fileserverHits atomic.Int32
 	dbQueries      *database.Queries
 	platform       string
+	jwtSecret      string
 }
 
 func main() {
@@ -36,10 +37,16 @@ func main() {
 		log.Fatal("PLATFORM must be set in .ENV")
 	}
 
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		log.Fatal("JWT_SECRET must be set in .ENV")
+	}
+
 	cfg := apiConfig{
 		fileserverHits: atomic.Int32{},
 		dbQueries:      database.New(db),
 		platform:       platform,
+		jwtSecret:      jwtSecret,
 	}
 
 	serveMux := http.NewServeMux()

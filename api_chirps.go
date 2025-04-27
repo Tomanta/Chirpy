@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/google/uuid"
+	"github.com/tomanta/chirpy/internal/auth"
 	"github.com/tomanta/chirpy/internal/database"
 	"net/http"
 	"strings"
@@ -67,19 +68,34 @@ func (cfg *apiConfig) handlerGetChirpByID(writer http.ResponseWriter, request *h
 
 func (cfg *apiConfig) handlerCreateChirp(writer http.ResponseWriter, request *http.Request) {
 	type parameters struct {
-		Body   string    `json:"body"`
-		UserID uuid.UUID `json:"user_id"`
+		Body string `json:"body"`
+	}
+
+	token, err := auth.GetBearerToken(request.Header)
+	if err != nil {
+		respondWithError(writer, http.StatusUnauthorized, "Could not find JWT", err)
+		return
+	}
+
+	userID, err := auth.ValidateJWT(token, cfg.jwtSecret)
+	if err != nil {
+		respondWithError(writer, http.StatusUnauthorized, "Could not validate JWT", err)
+		return
 	}
 
 	decoder := json.NewDecoder(request.Body)
 	params := parameters{}
-	err := decoder.Decode(&params)
-
-	user, err := cfg.dbQueries.GetUser(context.Background(), params.UserID)
+	err = decoder.Decode(&params)
 	if err != nil {
-		respondWithError(writer, http.StatusBadRequest, "Invalid user_id", err)
+		respondWithError(writer, http.StatusInternalServerError, "Could not decode parameters", err)
 		return
 	}
+
+	// user, err := cfg.dbQueries.GetUser(context.Background(), params.UserID)
+	// if err != nil {
+	// 	respondWithError(writer, http.StatusBadRequest, "Invalid user_id", err)
+	// 	return
+	// }
 
 	if params.Body == "" {
 		respondWithError(writer, http.StatusBadRequest, "Request does not contain body parameter", err)
@@ -94,7 +110,7 @@ func (cfg *apiConfig) handlerCreateChirp(writer http.ResponseWriter, request *ht
 
 	newChirp := database.CreateChirpParams{
 		Body:   cleanBody(params.Body),
-		UserID: user.ID,
+		UserID: userID,
 	}
 
 	newChirpResponse, err := cfg.dbQueries.CreateChirp(context.Background(), newChirp)

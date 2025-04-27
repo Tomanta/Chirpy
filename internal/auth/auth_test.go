@@ -112,8 +112,10 @@ func TestValidateJWT(t *testing.T) {
 
 func TestGetBearerToken(t *testing.T) {
 	header1 := http.Header{}
-	header1.Set("Authorization", "Bearer test123")
+	header1.Set("Authorization", "Bearer valid_token")
 	header2 := http.Header{}
+	header3 := http.Header{}
+	header3.Set("Authorization","InvalidBearer token")
 	
 	tests := []struct {
 		name        string
@@ -124,7 +126,7 @@ func TestGetBearerToken(t *testing.T) {
 		{
 			name:      "Valid token",
 			header:    header1,
-			wantToken: "test123",
+			wantToken: "valid_token",
 			wantErr:   false,
 		},
 		{
@@ -132,6 +134,12 @@ func TestGetBearerToken(t *testing.T) {
 			header:    header2,
 			wantToken: "",
 			wantErr:   true,
+		},
+		{
+			name: "Malformed Authorization Header",
+			header: header3,
+			wantToken: "",
+			wantErr: true,
 		},
 	}
 

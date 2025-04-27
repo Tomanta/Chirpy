@@ -15,6 +15,7 @@ type User struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Email     string    `json:"email"`
+	Token     string    `json:"token"`
 }
 
 type UserParameters struct {
@@ -59,39 +60,4 @@ func (cfg *apiConfig) handlerCreateUser(writer http.ResponseWriter, request *htt
 	}
 
 	respondWithJSON(writer, http.StatusCreated, payload)
-}
-
-func (cfg *apiConfig) handlerUserLogin(writer http.ResponseWriter, request *http.Request) {
-
-	decoder := json.NewDecoder(request.Body)
-	params := UserParameters{}
-	err := decoder.Decode(&params)
-
-	// Error: Unable to decode
-	if err != nil {
-		respondWithError(writer, http.StatusInternalServerError, "Couldn't decode parameters", err)
-		return
-	}
-
-	user, err := cfg.dbQueries.GetUserByEmail(context.Background(), params.Email)
-	if err != nil {
-		respondWithError(writer, http.StatusUnauthorized, "ncorrect email or password", err)
-		return
-	}
-
-	err = auth.CheckPasswordHash(params.Password, user.HashedPassword)
-	if err != nil {
-		respondWithError(writer, http.StatusUnauthorized, "incorrect email or password", err)
-		return
-	}
-
-	payload := User{
-		Id:        user.ID,
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
-		Email:     user.Email,
-	}
-
-	respondWithJSON(writer, http.StatusOK, payload)
-
 }
