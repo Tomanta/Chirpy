@@ -60,3 +60,59 @@ func (cfg *apiConfig) handlerCreateUser(writer http.ResponseWriter, request *htt
 
 	respondWithJSON(writer, http.StatusCreated, payload)
 }
+
+func (cfg *apiConfig) handlerUpdateUser(writer http.ResponseWriter, request *http.Request) {
+
+	token, err := auth.GetBearerToken(request.Header)
+	if err != nil {
+		respondWithError(writer, http.StatusUnauthorized, "Could not find JWT", err)
+		return
+	}
+
+	userID, err := auth.ValidateJWT(token, cfg.jwtSecret)
+	if err != nil {
+		respondWithError(writer, http.StatusUnauthorized, "Could not validate JWT", err)
+		return
+	}
+
+	decoder := json.NewDecoder(request.Body)
+	params := UserParameters{}
+	err = decoder.Decode(&params)
+
+	// Error: Unable to decode
+	if err != nil {
+		respondWithError(writer, http.StatusInternalServerError, "Couldn't decode parameters", err)
+		return
+	}
+
+	pw_hash, err := auth.HashPassword(params.Password)
+	if err != nil {
+		respondWithError(writer, http.StatusInternalServerError, "Could not hash password", err)
+		return
+	}
+
+	user_params := database.UpdateUserParams{
+		Email:          params.Email,
+		HashedPassword: pw_hash,
+		ID:             userID,
+	}
+
+	updated_user, err := cfg.dbQueries.UpdateUser(context.Background(), user_params)
+	if err != nil {
+		respondWithError(writer, http.StatusUnauthorized, "Could not hash password", err)
+		return
+	}
+
+	type Payload struct {
+		Updated_at time.Time `json:"updated_at"`
+		User_id    uuid.UUID `json:"id"`
+		Email      string    `json:"email"`
+	}
+
+	respondWithJSON(writer, http.StatusOK, Payload{
+		Updated_at: updated_user.UpdatedAt,
+		User_id:    updated_user.ID,
+		Email:      updated_user.Email,
+	})
+
+}
