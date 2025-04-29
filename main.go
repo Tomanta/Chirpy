@@ -55,6 +55,7 @@ func main() {
 	serveMux.HandleFunc("GET /api/healthz", handlerHealthz)
 	serveMux.HandleFunc("GET /api/chirps", cfg.handlerGetChirps)
 	serveMux.HandleFunc("GET /api/chirps/{chirpID}", cfg.handlerGetChirpByID)
+	serveMux.HandleFunc("DELETE /api/chirps/{chirpID}", cfg.handlerDeleteChirpByID)
 	serveMux.HandleFunc("POST /api/chirps", cfg.handlerCreateChirp)
 	serveMux.HandleFunc("POST /api/users", cfg.handlerCreateUser)
 	serveMux.HandleFunc("PUT /api/users", cfg.handlerUpdateUser)
