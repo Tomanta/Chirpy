@@ -11,10 +11,11 @@ import (
 )
 
 type User struct {
-	Id        uuid.UUID `json:"id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Email     string    `json:"email"`
+	Id          uuid.UUID `json:"id"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	Email       string    `json:"email"`
+	IsChirpyRed bool      `json:"is_chirpy_red"`
 }
 
 type UserParameters struct {
@@ -52,10 +53,11 @@ func (cfg *apiConfig) handlerCreateUser(writer http.ResponseWriter, request *htt
 	}
 
 	payload := User{
-		Id:        returnUser.ID,
-		CreatedAt: returnUser.CreatedAt,
-		UpdatedAt: returnUser.UpdatedAt,
-		Email:     returnUser.Email,
+		Id:          returnUser.ID,
+		CreatedAt:   returnUser.CreatedAt,
+		UpdatedAt:   returnUser.UpdatedAt,
+		Email:       returnUser.Email,
+		IsChirpyRed: returnUser.IsChirpyRed,
 	}
 
 	respondWithJSON(writer, http.StatusCreated, payload)
@@ -104,15 +106,50 @@ func (cfg *apiConfig) handlerUpdateUser(writer http.ResponseWriter, request *htt
 	}
 
 	type Payload struct {
-		Updated_at time.Time `json:"updated_at"`
-		User_id    uuid.UUID `json:"id"`
-		Email      string    `json:"email"`
+		Updated_at  time.Time `json:"updated_at"`
+		User_id     uuid.UUID `json:"id"`
+		Email       string    `json:"email"`
+		IsChirpyRed bool      `json:"is_chirpy_red"`
 	}
 
 	respondWithJSON(writer, http.StatusOK, Payload{
-		Updated_at: updated_user.UpdatedAt,
-		User_id:    updated_user.ID,
-		Email:      updated_user.Email,
+		Updated_at:  updated_user.UpdatedAt,
+		User_id:     updated_user.ID,
+		Email:       updated_user.Email,
+		IsChirpyRed: updated_user.IsChirpyRed,
 	})
 
+}
+
+func (cfg *apiConfig) handlerUpgradeRed(writer http.ResponseWriter, request *http.Request) {
+	type UserData struct {
+		UserID uuid.UUID `json:"user_id"`
+	}
+
+	type PolkaRequest struct {
+		Event string   `json:"event"`
+		Data  UserData `json:"data"`
+	}
+
+	decoder := json.NewDecoder(request.Body)
+	params := PolkaRequest{}
+	err := decoder.Decode(&params)
+
+	if err != nil {
+		respondWithError(writer, http.StatusBadRequest, "Not a valid request", err)
+		return
+	}
+
+	if params.Event != "user.upgraded" {
+		writer.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	user_id := params.Data.UserID
+	err = cfg.dbQueries.UpgradeUserToRed(context.Background(), user_id)
+	if err != nil {
+		writer.WriteHeader(http.StatusNotFound)
+	}
+
+	writer.WriteHeader(http.StatusNoContent)
 }
