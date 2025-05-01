@@ -2,7 +2,10 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"github.com/google/uuid"
 	"github.com/tomanta/chirpy/internal/auth"
 	"github.com/tomanta/chirpy/internal/database"
@@ -122,21 +125,31 @@ func (cfg *apiConfig) handlerUpdateUser(writer http.ResponseWriter, request *htt
 }
 
 func (cfg *apiConfig) handlerUpgradeRed(writer http.ResponseWriter, request *http.Request) {
-	type UserData struct {
-		UserID uuid.UUID `json:"user_id"`
+
+	token, err := auth.GetAPIKey(request.Header)
+	if err != nil {
+		writer.WriteHeader(http.StatusUnauthorized)
+		return
 	}
 
-	type PolkaRequest struct {
-		Event string   `json:"event"`
-		Data  UserData `json:"data"`
+	if token != cfg.polkaKey {
+		writer.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	type parameters struct {
+		Event string `json:"event"`
+		Data  struct {
+			UserID uuid.UUID `json:"user_id"`
+		}
 	}
 
 	decoder := json.NewDecoder(request.Body)
-	params := PolkaRequest{}
-	err := decoder.Decode(&params)
+	params := parameters{}
+	err = decoder.Decode(&params)
 
 	if err != nil {
-		respondWithError(writer, http.StatusBadRequest, "Not a valid request", err)
+		respondWithError(writer, http.StatusInternalServerError, "Couldn't decode parameters", err)
 		return
 	}
 
@@ -145,10 +158,14 @@ func (cfg *apiConfig) handlerUpgradeRed(writer http.ResponseWriter, request *htt
 		return
 	}
 
-	user_id := params.Data.UserID
-	err = cfg.dbQueries.UpgradeUserToRed(context.Background(), user_id)
+	_, err = cfg.dbQueries.UpgradeUserToRed(context.Background(), params.Data.UserID)
 	if err != nil {
-		writer.WriteHeader(http.StatusNotFound)
+		if errors.Is(err, sql.ErrNoRows) {
+			respondWithError(writer, http.StatusNotFound, "Couldn't find user", err)
+			return
+		}
+		respondWithError(writer, http.StatusInternalServerError, "Couldn't update user", err)
+		return
 	}
 
 	writer.WriteHeader(http.StatusNoContent)

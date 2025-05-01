@@ -24,7 +24,8 @@ SET email = $1, hashed_password = $2, updated_at = NOW()
 WHERE id = $3
 RETURNING *;
 
--- name: UpgradeUserToRed :exec
+-- name: UpgradeUserToRed :one
 UPDATE users
-SET is_chirpy_red = true
-WHERE id = $1;
+SET is_chirpy_red = true, updated_at = Now()
+WHERE id = $1
+RETURNING *;
