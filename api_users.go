@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/google/uuid"
 	"github.com/tomanta/chirpy/internal/auth"
 	"github.com/tomanta/chirpy/internal/database"

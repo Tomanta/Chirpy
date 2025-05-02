@@ -21,7 +21,19 @@ type Chirp struct {
 
 func (cfg *apiConfig) handlerGetChirps(writer http.ResponseWriter, request *http.Request) {
 
-	dbChirps, err := cfg.dbQueries.GetChirps(context.Background())
+	author := request.URL.Query().Get("author_id")
+	var err error
+	var dbChirps []database.Chirp
+	if author != "" {
+		authorID, err := uuid.Parse(author)
+		if err != nil {
+			respondWithError(writer, http.StatusBadRequest, "Invalid author id", err)
+		}
+		dbChirps, err = cfg.dbQueries.GetChirpsByAuthor(context.Background(), authorID)
+	} else {
+		dbChirps, err = cfg.dbQueries.GetChirps(context.Background())
+	}
+
 	if err != nil {
 		respondWithError(writer, http.StatusBadRequest, "Could not retrieve chirps", err)
 		return
