@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"sort"
 )
 
 type Chirp struct {
@@ -22,18 +23,25 @@ type Chirp struct {
 func (cfg *apiConfig) handlerGetChirps(writer http.ResponseWriter, request *http.Request) {
 
 	author := request.URL.Query().Get("author_id")
-	var err error
-	var dbChirps []database.Chirp
+	authorID := uuid.Nil
 	if author != "" {
-		authorID, err := uuid.Parse(author)
+		var err error
+		authorID, err = uuid.Parse(author)
 		if err != nil {
 			respondWithError(writer, http.StatusBadRequest, "Invalid author id", err)
+			return
 		}
-		dbChirps, err = cfg.dbQueries.GetChirpsByAuthor(context.Background(), authorID)
-	} else {
-		dbChirps, err = cfg.dbQueries.GetChirps(context.Background())
 	}
 
+	sortOrder := request.URL.Query().Get("sort")
+	if sortOrder != "" {
+		if sortOrder != "asc" && sortOrder != "desc" {
+			respondWithError(writer, http.StatusBadRequest, "Invalid sort order", nil)
+			return
+		}
+	}
+
+	dbChirps, err := cfg.dbQueries.GetChirps(context.Background())
 	if err != nil {
 		respondWithError(writer, http.StatusBadRequest, "Could not retrieve chirps", err)
 		return
@@ -41,12 +49,20 @@ func (cfg *apiConfig) handlerGetChirps(writer http.ResponseWriter, request *http
 
 	chirps := []Chirp{}
 	for _, c := range dbChirps {
-		chirps = append(chirps, Chirp{
-			ID:        c.ID,
-			CreatedAt: c.CreatedAt,
-			UpdatedAt: c.UpdatedAt,
-			Body:      c.Body,
-			UserID:    c.UserID,
+		if author == "" || authorID == c.UserID {
+			chirps = append(chirps, Chirp{
+				ID:        c.ID,
+				CreatedAt: c.CreatedAt,
+				UpdatedAt: c.UpdatedAt,
+				Body:      c.Body,
+				UserID:    c.UserID,
+			})
+		}
+	}
+
+	if sortOrder == "desc" {
+		sort.Slice(chirps, func(i, j int) bool {
+			return chirps[i].CreatedAt.After(chirps[j].CreatedAt)
 		})
 	}
 
